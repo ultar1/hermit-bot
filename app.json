@@ -27,6 +27,16 @@
       "description": "Session ID",
       "required": true,
       "value": ""
+    },
+    "REJECT_CALL": {
+      "description": "Auto reject call, if set as true",
+      "required": false,
+      "value": "false"
+    },
+    "AUTO_STATUS_VIEW": {
+      "description": "View others' status",
+      "required": false,
+      "value": "false"
     }
   }
 }

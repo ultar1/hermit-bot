@@ -1,0 +1,47 @@
+{
+  "name": "HERMIT",
+  "description": "",
+  "keywords": ["Nodejs"],
+  "success_url": "/",
+  "env": {
+    "ALWAYS_ONLINE": {
+      "description": "show bot number last seen as online",
+      "required": false,
+      "value": "false"
+    },
+    "LOG_MSG": {
+      "description": "Show whatsapp msgs in log",
+      "required": false,
+      "value": "false"
+    },
+    "SUDO": {
+      "description": "admin",
+      "required": false,
+      "value": "2349163916314"
+    },
+    "PREFIX": {
+      "description": "prefix, check for more",
+      "required": false,
+      "value": "."
+    },
+    "SESSION_ID": {
+      "description": "session id",
+      "required": true,
+      "value": ""
+    },
+    "REJECT_CALL": {
+      "description": "auto reject call, if set as true",
+      "required": false,
+      "value": "false"
+    },
+    "AUTO_STATUS_VIEW": {
+      "description": "view others status",
+      "required": false,
+      "value": "false"
+    },
+    "SEND_READ": {
+      "description": "send blue tick",
+      "required": false,
+      "value": "false"
+    },
+}

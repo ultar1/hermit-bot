@@ -62,7 +62,7 @@ module.exports = {
         },
         logging: false,
       }),
-  RBG_API_KEY: process.env.REMOVE_BG_API_KEY || false,
+  RBG_API_KEY: process.env.REMOVE_BG_API_KEY || 'ZfAJyxKLuKcu95dkgSF8oe21',
   BRAIN_ID: process.env.BRAIN_ID || 'bid=168613&key=EfbnX54Iy9PFIFp3',
   SUDO: process.env.SUDO || '0,0',
   DEBUG: DEBUG

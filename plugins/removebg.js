@@ -17,28 +17,48 @@ Function({
 }, async (message, match) => {
     if (!message.reply_message) return await message.reply('Please reply to an image.');
     if (!/image/.test(message.mine)) return await message.reply('Please reply to an image.');
-    if (Config.RBG_API_KEY === false) return await message.reply('No API key provided for remove.bg.');
+    if (!Config.RBG_API_KEY) return await message.reply('No API key provided for remove.bg.');
 
     const loadingMessage = await message.reply('Processing...');
-    const location = await message.reply_message.downloadAndSaveMedia();
-    const form = new FormData();
-    form.append('image_file', fs.createReadStream(location));
-    form.append('size', 'auto');
+    
+    try {
+        // Step 1: Download image and save locally
+        const location = await message.reply_message.downloadAndSaveMedia();
+        const form = new FormData();
+        form.append('image_file', fs.createReadStream(location));
+        form.append('size', 'auto');
 
-    const rbg = await got.stream.post('https://api.remove.bg/v1.0/removebg', {
-        body: form,
-        headers: {
-            'X-Api-Key': Config.RBG_API_KEY
+        // Step 2: API call to remove.bg
+        const rbgResponse = await got.post('https://api.remove.bg/v1.0/removebg', {
+            body: form,
+            headers: {
+                'X-Api-Key': Config.RBG_API_KEY
+            },
+            responseType: 'buffer' // ensure we get a buffer in response
+        });
+
+        // Check if response is valid (Status Code 200 OK)
+        if (rbgResponse.statusCode !== 200) {
+            await message.reply(`Failed to process image. Status Code: ${rbgResponse.statusCode}`);
+            return;
         }
-    });
 
-    await pipeline(rbg, fs.createWriteStream('rbg.png'));
+        // Step 3: Save the returned image
+        fs.writeFileSync('rbg.png', rbgResponse.body);
 
-    await message.client.sendMessage(message.jid, {
-        image: fs.readFileSync('rbg.png')
-    });
+        // Step 4: Send the processed image to the user
+        await message.client.sendMessage(message.jid, {
+            image: fs.readFileSync('rbg.png')
+        });
 
-    await message.client.sendMessage(message.jid, {
-        delete: loadingMessage.key
-    });
+    } catch (error) {
+        // Log and reply with the error
+        await message.reply('Error processing the image.');
+        console.error(error.message || error);
+    } finally {
+        // Step 5: Clean up - Delete loading message
+        await message.client.sendMessage(message.jid, {
+            delete: loadingMessage.key
+        });
+    }
 });

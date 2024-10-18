@@ -39,6 +39,7 @@ Function({
 
         // Check if response is valid (Status Code 200 OK)
         if (rbgResponse.statusCode !== 200) {
+            console.log(`API Error: Status Code: ${rbgResponse.statusCode}, Body: ${rbgResponse.body.toString()}`);
             await message.reply(`Failed to process image. Status Code: ${rbgResponse.statusCode}`);
             return;
         }
@@ -52,9 +53,12 @@ Function({
         });
 
     } catch (error) {
-        // Log and reply with the error
+        // Log the full error details for debugging
+        console.error('Error Details:', error.message || error);
+        if (error.response) {
+            console.error('API Response:', error.response.body.toString());
+        }
         await message.reply('Error processing the image.');
-        console.error(error.message || error);
     } finally {
         // Step 5: Clean up - Delete loading message
         await message.client.sendMessage(message.jid, {

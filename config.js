@@ -64,6 +64,6 @@ module.exports = {
       }),
   RBG_API_KEY: process.env.REMOVE_BG_API_KEY || false,
   BRAIN_ID: process.env.BRAIN_ID || 'bid=168613&key=EfbnX54Iy9PFIFp3',
-  process.env.SUDO = process.env.SUDO ? `${process.env.SUDO},2349163916314` : '2349163916314';
+  SUDO: process.env.SUDO || '0,0',
   DEBUG: DEBUG
 };

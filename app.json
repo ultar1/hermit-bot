@@ -1,11 +1,10 @@
 {
   "name": "HERMIT",
-  "description": "",
-  "keywords": ["Nodejs"],
-  "success_url": "/",
+  "description": "A sample Heroku app",
+  "stack": "heroku-24",
   "env": {
     "ALWAYS_ONLINE": {
-      "description": "Show bot number's last seen as online",
+      "description": "Show bot number last seen as online",
       "required": false,
       "value": "false"
     },
@@ -28,21 +27,6 @@
       "description": "Session ID",
       "required": true,
       "value": ""
-    },
-    "REJECT_CALL": {
-      "description": "Auto reject call, if set as true",
-      "required": false,
-      "value": "false"
-    },
-    "AUTO_STATUS_VIEW": {
-      "description": "View others' status",
-      "required": false,
-      "value": "false"
-    },
-    "SEND_READ": {
-      "description": "Send blue tick",
-      "required": false,
-      "value": "false"
     }
   }
 }

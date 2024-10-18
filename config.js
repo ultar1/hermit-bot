@@ -29,7 +29,7 @@ module.exports = {
   AUTOMUTE_MSG: process.env.AUTOMUTE_MSG || '_Group automuted!_\n_(Change this by setting var AUTOMUTE_MSG)_',
   AUTOUNMUTE_MSG: process.env.AUTOUNMUTE_MSG || '_Group autounmuted!_\n_(Change this by setting var AUTOUNMUTE_MSG)_',
   ANTILINK_MSG: process.env.ANTILINK_MSG || '_Link Not Allowed!_\n_(Change this by setting var ANTILINK_MSG)_',
-  BOT_INFO: process.env.BOT_INFO || '𝖀𝖑𝖙-𝕬𝕽;𝖀𝖑𝖙-𝕬𝕽;972528277755;https://i.imgur.com/6oRG106.jpeg',
+  BOT_INFO: process.env.BOT_INFO || '𝐇𝐄𝐑𝐌𝐈𝐓-𝐌𝐃;𝖀𝖑𝖙-𝕬𝕽;972528277755;https://i.imgur.com/6oRG106.jpeg',
   AUDIO_DATA: process.env.AUDIO_DATA || 'ʜᴇʀᴍɪᴛ;ᴀᴅɪᴛʜyᴀɴ;https://i.imgur.com/fj2WE83.jpeg',
   STICKER_DATA: process.env.STICKER_DATA || '𝖀𝖑𝖙-𝕬𝕽',
   ERROR_MESSAGE: toBool(process.env.ERROR_MESSAGE, 'true'),

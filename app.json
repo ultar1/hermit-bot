@@ -38,5 +38,10 @@
       "required": false,
       "value": "false"
     }
-  }
+  },
+  "buildpacks": [
+    {
+      "url": "https://github.com/heroku/heroku-buildpack-activestorage-preview"
+    }
+  ]
 }

@@ -109,7 +109,7 @@ Function({
 	type: 'download'
 }, async (message, match, client) => {
 match = match || message.reply_message.text
-if (!match) return await message.reply('*Need text!*\n_Example: .play astronaut in the ocean_');
+if (!match) return await message.reply('*Need text!*\n_Example: .play ultar in the ocean_');
 const search = await yts(match)
 const response = await searchYouTube(search.videos[0].url);
 const data = filterLinks(response, { type: 'mp4' });

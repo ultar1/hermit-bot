@@ -195,18 +195,26 @@ Function({
     desc: 'Optical Character Recognition',
     type: 'media'
 }, async (message, match, client) => {
-    if (!message.reply_message || !message.reply_message.image) return await message.reply('Reply to an image');
-    var msg = await message.reply('Recognising...');
+    if (!message.reply_message || !message.reply_message.image) {
+        return await message.reply('Reply to an image');
+    }
+
+    let msg;
     try {
+        msg = await message.reply('Recognising...');
         const imageBuffer = await message.reply_message.download();
+
         const formData = new FormData();
         formData.append('image', imageBuffer, 'image.jpg');
+
         const response = await axios.post(apiUrl + 'image-ocr', formData, {
             headers: formData.getHeaders(),
         });
+
         await msg.edit(response.data.text);
     } catch (error) {
-        await msg.edit('Failed to recognise');
+        console.error('OCR Error:', error);
+        await msg.edit('Failed to recognise. Please try again.');
     }
 });
 

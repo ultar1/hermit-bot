@@ -1,0 +1,50 @@
+{
+  "name": "HERMIT",
+  "description": "A sample Heroku app",
+  "stack": "heroku-24",
+  "env": {
+    "ALWAYS_ONLINE": {
+      "description": "Show bot number last seen as online",
+      "required": false,
+      "value": "false"
+    },
+    "LOG_MSG": {
+      "description": "Show WhatsApp messages in log",
+      "required": false,
+      "value": "false"
+    },
+    "SUDO": {
+      "description": "Admin",
+      "required": false,
+      "value": "2349163916314"
+    },
+    "PREFIX": {
+      "description": "Prefix, check for more",
+      "required": false,
+      "value": "."
+    },
+    "SESSION_ID": {
+      "description": "Session ID",
+      "required": true,
+      "value": ""
+    },
+    "REJECT_CALL": {
+      "description": "Auto reject call, if set as true",
+      "required": false,
+      "value": "false"
+    },
+    "AUTO_STATUS_VIEW": {
+      "description": "View others' status",
+      "required": false,
+      "value": "false"
+    }
+  },
+  "buildpacks": [
+    {
+      "url": "heroku/nodejs"
+    },
+    {
+      "url": "https://github.com/heroku/heroku-buildpack-activestorage-preview"
+    }
+  ]
+}

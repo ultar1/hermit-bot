@@ -4,8 +4,8 @@ console.log('--- HERMIT BOT SCRIPT STARTING (index.js) ---');
 // === Imports ===
 const client = require('./lib/client')
 const axios = require('axios');
-const path = require("path"); // Added for config
-const fs = require("fs"); // Added for config
+const path = require("path"); 
+const fs = require("fs"); 
 let _baileys = null;
 
 if (fs.existsSync("./config.env")) {
@@ -13,7 +13,6 @@ if (fs.existsSync("./config.env")) {
 }
 
 // === CONFIGURATION ===
-// These are read from your Heroku Config Vars
 const APP_NAME             = process.env.APP_NAME             || 'Hermit App';
 const SESSION_ID           = process.env.SESSION_ID           || 'unknown-session';
 const RESTART_DELAY_MINUTES= parseInt(process.env.RESTART_DELAY_MINUTES || '360', 10);
@@ -62,30 +61,30 @@ process.stderr.write = (chunk, encoding, callback) => {
     return originalStderrWrite.apply(process.stderr, [chunk, encoding, callback]);
 };
 
-// Function to process each log line
+/**
+ * Function to process each log line
+ * This is where we look for your specific triggers
+ */
 function handleLogLine(line, streamType) {
-    // This console.log will go to original stdout/stderr, avoiding recursion
-    // originalStdoutWrite.apply(process.stdout, [`[DEBUG - ${streamType.toUpperCase()} INTERCEPTED] Line: "${line.trim()}"\n`]);
+    const cleanLine = line.trim();
 
-    // --- 💡 HERMIT "CONNECTED" TRIGGER 💡 ---
-    if (line.includes('0|hermit-md  | connected')) {
+    // --- 💡 START OF FIX: Match the RAW log line 💡 ---
+    // The script itself only prints "connected", not the "0|hermit-md|" part.
+    
+    // 1. HERMIT "CONNECTED" TRIGGER
+    if (cleanLine === 'connected') {
         originalStdoutWrite.apply(process.stdout, ['[DEBUG] Hermit "connected" message detected!\n']);
-        // Call the alert function
         sendBotConnectedAlert().catch(err => originalStderrWrite.apply(process.stderr, [`Error sending connected alert: ${err.message}\n`]));
     }
 
-    // --- 💡 HERMIT "LOGOUT" TRIGGER 💡 ---
-    const logoutPatterns = [
-        'connection closed.' // <-- Your requested trigger
-    ];
-
-    if (logoutPatterns.some(pattern => line.includes(pattern))) {
+    // 2. HERMIT "LOGOUT" TRIGGER
+    if (cleanLine.includes('connection closed.')) {
+    // --- 💡 END OF FIX 💡 ---
+        
         originalStderrWrite.apply(process.stderr, ['[DEBUG] Hermit "connection closed" pattern detected in log!\n']);
         
-        // Call the alert function
         sendInvalidSessionAlert().catch(err => originalStderrWrite.apply(process.stderr, [`Error sending logout alert: ${err.message}\n`]));
 
-        // Trigger restart, if configured
         if (HEROKU_API_KEY) {
             originalStderrWrite.apply(process.stderr, [`Detected logout. Scheduling process exit in ${RESTART_DELAY_MINUTES} minute(s).\n`]);
             setTimeout(() => process.exit(1), RESTART_DELAY_MINUTES * 60 * 1000);
@@ -95,7 +94,7 @@ function handleLogLine(line, streamType) {
 // === LOW-LEVEL LOG INTERCEPTION END ===
 
 
-// === Telegram Helper Functions (from Raganork) ===
+// === Telegram Helper Functions (Copied from Raganork) ===
 
 async function loadLastLogoutAlertTime() {
   if (!HEROKU_API_KEY) {
@@ -241,4 +240,5 @@ const connect = async () => {
 	}
 }
 
+// Start the connection
 connect()

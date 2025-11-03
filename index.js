@@ -4,9 +4,16 @@ console.log('--- HERMIT BOT SCRIPT STARTING (index.js) ---');
 // === Imports ===
 const client = require('./lib/client')
 const axios = require('axios');
+const path = require("path"); // Added for config
+const fs = require("fs"); // Added for config
 let _baileys = null;
 
+if (fs.existsSync("./config.env")) {
+    require("dotenv").config({ path: "./config.env" });
+}
+
 // === CONFIGURATION ===
+// These are read from your Heroku Config Vars
 const APP_NAME             = process.env.APP_NAME             || 'Hermit App';
 const SESSION_ID           = process.env.SESSION_ID           || 'unknown-session';
 const RESTART_DELAY_MINUTES= parseInt(process.env.RESTART_DELAY_MINUTES || '360', 10);
@@ -20,21 +27,19 @@ const TELEGRAM_CHANNEL_ID  = '-1002892034574'; // Your Channel ID
 let lastLogoutMessageId = null;
 let lastLogoutAlertTime = null;
 
-// === LOW-LEVEL LOG INTERCEPTION START ===
-
-// --- 💡 START OF FIX 💡 ---
-// Variables MUST be declared *before* they are used.
-let stdoutBuffer = '';
-let stderrBuffer = '';
-// --- 💡 END OF FIX 💡 ---
-
+// === LOW-LEVEL LOG INTERCEPTION START (from Raganork) ===
 // Store original write functions
 const originalStdoutWrite = process.stdout.write;
 const originalStderrWrite = process.stderr.write;
 
+// Buffer for collecting output before processing
+let stdoutBuffer = '';
+let stderrBuffer = '';
+
 // Override process.stdout.write
 process.stdout.write = (chunk, encoding, callback) => {
     stdoutBuffer += chunk.toString();
+    // Process line by line
     let newlineIndex;
     while ((newlineIndex = stdoutBuffer.indexOf('\n')) !== -1) {
         const line = stdoutBuffer.substring(0, newlineIndex);
@@ -47,6 +52,7 @@ process.stdout.write = (chunk, encoding, callback) => {
 // Override process.stderr.write
 process.stderr.write = (chunk, encoding, callback) => {
     stderrBuffer += chunk.toString();
+    // Process line by line
     let newlineIndex;
     while ((newlineIndex = stderrBuffer.indexOf('\n')) !== -1) {
         const line = stderrBuffer.substring(0, newlineIndex);
@@ -56,21 +62,27 @@ process.stderr.write = (chunk, encoding, callback) => {
     return originalStderrWrite.apply(process.stderr, [chunk, encoding, callback]);
 };
 
-/**
- * Function to process each log line
- * This is where we look for your specific triggers
- */
+// Function to process each log line
 function handleLogLine(line, streamType) {
-    // 💡 This is the "Connected" trigger you requested
+    // This console.log will go to original stdout/stderr, avoiding recursion
+    // originalStdoutWrite.apply(process.stdout, [`[DEBUG - ${streamType.toUpperCase()} INTERCEPTED] Line: "${line.trim()}"\n`]);
+
+    // --- 💡 HERMIT "CONNECTED" TRIGGER 💡 ---
     if (line.includes('0|hermit-md  | connected')) {
         originalStdoutWrite.apply(process.stdout, ['[DEBUG] Hermit "connected" message detected!\n']);
+        // Call the alert function
         sendBotConnectedAlert().catch(err => originalStderrWrite.apply(process.stderr, [`Error sending connected alert: ${err.message}\n`]));
     }
 
-    // 💡 This is the "Logged Out" trigger you requested
-    if (line.includes('connection closed.')) {
+    // --- 💡 HERMIT "LOGOUT" TRIGGER 💡 ---
+    const logoutPatterns = [
+        'connection closed.' // <-- Your requested trigger
+    ];
+
+    if (logoutPatterns.some(pattern => line.includes(pattern))) {
         originalStderrWrite.apply(process.stderr, ['[DEBUG] Hermit "connection closed" pattern detected in log!\n']);
         
+        // Call the alert function
         sendInvalidSessionAlert().catch(err => originalStderrWrite.apply(process.stderr, [`Error sending logout alert: ${err.message}\n`]));
 
         // Trigger restart, if configured
@@ -82,11 +94,9 @@ function handleLogLine(line, streamType) {
 }
 // === LOW-LEVEL LOG INTERCEPTION END ===
 
-// === Telegram Helper Functions ===
 
-/**
- * Loads the last logout time from Heroku to manage the 24h cooldown
- */
+// === Telegram Helper Functions (from Raganork) ===
+
 async function loadLastLogoutAlertTime() {
   if (!HEROKU_API_KEY) {
       console.warn('HEROKU_API_KEY is not set. Cannot load LAST_LOGOUT_ALERT from Heroku config vars.');
@@ -113,33 +123,32 @@ async function loadLastLogoutAlertTime() {
   }
 }
 
-/**
- * Sends a message to Telegram using a direct API call
- */
-async function sendTelegramAlert(text, chatId = TELEGRAM_USER_ID) {
-  if (!TELEGRAM_BOT_TOKEN) {
-      console.error('TELEGRAM_BOT_TOKEN is not set. Cannot send Telegram alerts.');
-      return null;
-  }
-
-  const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
-  const payload = { chat_id: chatId, text };
-
-  try {
-    const res = await axios.post(url, payload);
-    return res.data.result.message_id;
-  } catch (err) {
-    console.error(`Telegram alert failed for chat ID ${chatId}:`, err.message);
-    if (err.response) {
-        console.error(`   Telegram API Response: Status ${err.response.status}, Data: ${JSON.stringify(err.response.data)}`);
+async function sendTelegramAlert(text, chatId) { 
+    if (!TELEGRAM_BOT_TOKEN) {
+        originalStderrWrite.apply(process.stderr, ['TELEGRAM_BOT_TOKEN is not set. Cannot send Telegram alerts.\n']);
+        return null;
     }
-    return null;
-  }
+    if (!chatId) {
+        originalStderrWrite.apply(process.stderr, ['Telegram chatId is not provided for alert. Cannot send.\n']);
+        return null;
+    }
+
+    const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
+    const payload = { chat_id: chatId, text };
+
+    try {
+        const res = await axios.post(url, payload);
+        originalStdoutWrite.apply(process.stdout, [`Telegram message sent to chat ID ${chatId}: ${text.substring(0, 50)}...\n`]);
+        return res.data.result.message_id;
+    } catch (err) {
+        originalStderrWrite.apply(process.stderr, [`Telegram alert failed for chat ID ${chatId}: ${err.message}\n`]);
+        if (err.response) {
+            originalStderrWrite.apply(process.stderr, [`   Telegram API Response: Status ${err.response.status}, Data: ${JSON.stringify(err.response.data)}\n`]);
+        }
+        return null;
+    }
 }
 
-/**
- * Formats and sends the "Logged Out" message (with 24h cooldown)
- */
 async function sendInvalidSessionAlert() {
   const now = new Date();
   if (lastLogoutAlertTime && (now - lastLogoutAlertTime) < 24 * 3600e3) { // 24h cooldown
@@ -169,7 +178,6 @@ async function sendInvalidSessionAlert() {
     `Restarting in ${restartTimeDisplay}.`;
 
   try {
-    // Delete the previous logout message (if any) from the admin chat
     if (lastLogoutMessageId) {
       try {
         await axios.post(
@@ -179,18 +187,15 @@ async function sendInvalidSessionAlert() {
       } catch (delErr) { /* ignore */ }
     }
 
-    // Send the detailed message to the admin
     const msgId = await sendTelegramAlert(adminMessage, TELEGRAM_USER_ID);
     if (!msgId) return;
 
     lastLogoutMessageId = msgId;
     lastLogoutAlertTime = now;
  
-    // Send the simple message to the channel (for bot.js to read)
     await sendTelegramAlert(channelMessage, TELEGRAM_CHANNEL_ID);
     console.log(`Sent new logout alert to channel ${TELEGRAM_CHANNEL_ID}`);
 
-    // Save the timestamp to Heroku to persist the cooldown
     if (HEROKU_API_KEY) {
         const cfgUrl = `https://api.heroku.com/apps/${APP_NAME}/config-vars`;
         const headers = {
@@ -206,9 +211,6 @@ async function sendInvalidSessionAlert() {
   }
 }
 
-/**
- * Formats and sends the "Connected" message
- */
 async function sendBotConnectedAlert() {
     const now = new Date().toLocaleString('en-GB', { timeZone: 'Africa/Lagos' });
     

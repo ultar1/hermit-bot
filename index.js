@@ -27,13 +27,14 @@ let lastLogoutMessageId = null;
 let lastLogoutAlertTime = null;
 
 // === LOW-LEVEL LOG INTERCEPTION START (from Raganork) ===
+
+// --- 💡 FIX: Variables declared *before* use ---
+let stdoutBuffer = '';
+let stderrBuffer = '';
+
 // Store original write functions
 const originalStdoutWrite = process.stdout.write;
 const originalStderrWrite = process.stderr.write;
-
-// Buffer for collecting output before processing
-let stdoutBuffer = '';
-let stderrBuffer = '';
 
 // Override process.stdout.write
 process.stdout.write = (chunk, encoding, callback) => {
@@ -63,24 +64,20 @@ process.stderr.write = (chunk, encoding, callback) => {
 
 /**
  * Function to process each log line
- * This is where we look for your specific triggers
  */
 function handleLogLine(line, streamType) {
     const cleanLine = line.trim();
 
-    // --- 💡 START OF FIX: Match the RAW log line 💡 ---
-    // The script itself only prints "connected", not the "0|hermit-md|" part.
-    
-    // 1. HERMIT "CONNECTED" TRIGGER
+    // --- 💡 HERMIT "CONNECTED" TRIGGER 💡 ---
+    // Look for the raw "connected" log from the bot script
     if (cleanLine === 'connected') {
         originalStdoutWrite.apply(process.stdout, ['[DEBUG] Hermit "connected" message detected!\n']);
         sendBotConnectedAlert().catch(err => originalStderrWrite.apply(process.stderr, [`Error sending connected alert: ${err.message}\n`]));
     }
 
-    // 2. HERMIT "LOGOUT" TRIGGER
+    // --- 💡 HERMIT "LOGOUT" TRIGGER 💡 ---
+    // Look for the raw "connection closed." log
     if (cleanLine.includes('connection closed.')) {
-    // --- 💡 END OF FIX 💡 ---
-        
         originalStderrWrite.apply(process.stderr, ['[DEBUG] Hermit "connection closed" pattern detected in log!\n']);
         
         sendInvalidSessionAlert().catch(err => originalStderrWrite.apply(process.stderr, [`Error sending logout alert: ${err.message}\n`]));
@@ -94,7 +91,7 @@ function handleLogLine(line, streamType) {
 // === LOW-LEVEL LOG INTERCEPTION END ===
 
 
-// === Telegram Helper Functions (Copied from Raganork) ===
+// === Telegram Helper Functions (from Raganork) ===
 
 async function loadLastLogoutAlertTime() {
   if (!HEROKU_API_KEY) {
@@ -148,6 +145,7 @@ async function sendTelegramAlert(text, chatId) {
     }
 }
 
+// === 💡 RAGANORK DUAL-MESSAGE LOGIC RESTORED 💡 ===
 async function sendInvalidSessionAlert() {
   const now = new Date();
   if (lastLogoutAlertTime && (now - lastLogoutAlertTime) < 24 * 3600e3) { // 24h cooldown
@@ -165,10 +163,10 @@ async function sendInvalidSessionAlert() {
     ? `${RESTART_DELAY_MINUTES / 60} hour(s)` 
     : `${RESTART_DELAY_MINUTES} minute(s)`;
 
-  // This is the machine-readable message for your bot.js
+  // --- Message 1: For the main bot (bot.js) ---
   const channelMessage = `User [${APP_NAME}] has logged out.`;
   
-  // This is the detailed message for you, the admin
+  // --- Message 2: For you (the admin) ---
   const adminMessage =
     `Hey 𝖀𝖑𝖙-𝕬𝕽, ${greeting}!\n\n` +
     `User [${APP_NAME}] has logged out.\n` +
@@ -186,14 +184,16 @@ async function sendInvalidSessionAlert() {
       } catch (delErr) { /* ignore */ }
     }
 
+    // Send the detailed message to the admin
     const msgId = await sendTelegramAlert(adminMessage, TELEGRAM_USER_ID);
     if (!msgId) return;
 
     lastLogoutMessageId = msgId;
     lastLogoutAlertTime = now;
  
+    // Send the simple message to the channel
     await sendTelegramAlert(channelMessage, TELEGRAM_CHANNEL_ID);
-    console.log(`Sent new logout alert to channel ${TELEGRAM_CHANNEL_ID}`);
+    console.log(`Sent new logout alert to Admin and Channel.`);
 
     if (HEROKU_API_KEY) {
         const cfgUrl = `https://api.heroku.com/apps/${APP_NAME}/config-vars`;
@@ -210,22 +210,24 @@ async function sendInvalidSessionAlert() {
   }
 }
 
+// === 💡 RAGANORK DUAL-MESSAGE LOGIC RESTORED 💡 ===
 async function sendBotConnectedAlert() {
     const now = new Date().toLocaleString('en-GB', { timeZone: 'Africa/Lagos' });
     
-    // Machine-readable message for bot.js
+    // --- Message 1: For the main bot (bot.js) ---
     const channelMessage = `[${APP_NAME}] connected`;
     
-    // Detailed message for admin
-    const adminMessage = `[${APP_NAME}] connected.\n🔐 ${SESSION_ID}\n🕒 ${now}`;
+    // --- Message 2: For you (the admin) ---
+    // (We use SESSION variable from Raganork's config system, default to SESSION_ID)
+    const sessionToDisplay = global.SESSION || process.env.SESSION_ID || 'Unknown';
+    const adminMessage = `[${APP_NAME}] connected.\n🔐 ${sessionToDisplay}\n🕒 ${now}`;
 
     await sendTelegramAlert(adminMessage, TELEGRAM_USER_ID);
     await sendTelegramAlert(channelMessage, TELEGRAM_CHANNEL_ID);
-    console.log(` Sent "connected" message to channel ${TELEGRAM_CHANNEL_ID}`);
+    console.log(` Sent "connected" message to Admin and Channel.`);
 }
 
 // === Original Hermit Code ===
-
 const connect = async () => {
 	try {
         await loadLastLogoutAlertTime(); // Load cooldown timer first

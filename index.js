@@ -7,7 +7,6 @@ const axios = require('axios');
 let _baileys = null;
 
 // === CONFIGURATION ===
-// These are read from your Heroku Config Vars
 const APP_NAME             = process.env.APP_NAME             || 'Hermit App';
 const SESSION_ID           = process.env.SESSION_ID           || 'unknown-session';
 const RESTART_DELAY_MINUTES= parseInt(process.env.RESTART_DELAY_MINUTES || '360', 10);
@@ -22,13 +21,16 @@ let lastLogoutMessageId = null;
 let lastLogoutAlertTime = null;
 
 // === LOW-LEVEL LOG INTERCEPTION START ===
+
+// --- 💡 START OF FIX 💡 ---
+// Variables MUST be declared *before* they are used.
+let stdoutBuffer = '';
+let stderrBuffer = '';
+// --- 💡 END OF FIX 💡 ---
+
 // Store original write functions
 const originalStdoutWrite = process.stdout.write;
 const originalStderrWrite = process.stderr.write;
-
-// Buffer for collecting output
-let stdoutBuffer = '';
-let stderrBuffer = '';
 
 // Override process.stdout.write
 process.stdout.write = (chunk, encoding, callback) => {

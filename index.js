@@ -156,14 +156,10 @@ async function sendTelegramAlert(text, chatId) {
     }
 }
 
-// === 💡 RAGANORK DUAL-MESSAGE LOGIC RESTORED 💡 ===
+
+
 async function sendInvalidSessionAlert() {
   const now = new Date();
-  if (lastLogoutAlertTime && (now - lastLogoutAlertTime) < 24 * 3600e3) { // 24h cooldown
-    console.log('Skipping logout alert — cooldown not expired.');
-    return;
-  }
-
   const nowStr   = now.toLocaleString('en-GB', { timeZone: 'Africa/Lagos' });
   const hour     = now.getHours();
   const greeting = hour < 12 ? 'good morning'
@@ -174,10 +170,10 @@ async function sendInvalidSessionAlert() {
     ? `${RESTART_DELAY_MINUTES / 60} hour(s)` 
     : `${RESTART_DELAY_MINUTES} minute(s)`;
 
-  // --- Message 1: For the main bot (bot.js) ---
+  // Message 1: For the main bot (bot.js)
   const channelMessage = `User [${APP_NAME}] has logged out.`;
   
-  // --- Message 2: For you (the admin) ---
+  // Message 2: For you (the admin)
   const adminMessage =
     `Hey 𝖀𝖑𝖙-𝕬𝕽, ${greeting}!\n\n` +
     `User [${APP_NAME}] has logged out.\n` +
@@ -186,6 +182,8 @@ async function sendInvalidSessionAlert() {
     `Restarting in ${restartTimeDisplay}.`;
 
   try {
+    
+    // We can still delete the last message ID if we have it
     if (lastLogoutMessageId) {
       try {
         await axios.post(
@@ -197,29 +195,24 @@ async function sendInvalidSessionAlert() {
 
     // Send the detailed message to the admin
     const msgId = await sendTelegramAlert(adminMessage, TELEGRAM_USER_ID);
-    if (!msgId) return;
+    if (!msgId) return; // Don't continue if admin send failed
 
+    // Save the new message ID
     lastLogoutMessageId = msgId;
-    lastLogoutAlertTime = now;
- 
+    
+    // We are no longer saving the 'lastLogoutAlertTime'
+
     // Send the simple message to the channel
     await sendTelegramAlert(channelMessage, TELEGRAM_CHANNEL_ID);
     console.log(`Sent new logout alert to Admin and Channel.`);
 
-    if (HEROKU_API_KEY) {
-        const cfgUrl = `https://api.heroku.com/apps/${APP_NAME}/config-vars`;
-        const headers = {
-          Authorization: `Bearer ${HEROKU_API_KEY}`,
-          Accept: 'application/vnd.heroku+json; version=3',
-          'Content-Type': 'application/json'
-        };
-        await axios.patch(cfgUrl, { LAST_LOGOUT_ALERT: now.toISOString() }, { headers });
-        console.log(`Persisted LAST_LOGOUT_ALERT timestamp.`);
-    }
+    // We also remove the logic for saving the timestamp to Heroku
+    
   } catch (err) {
     console.error('Failed during sendInvalidSessionAlert():', err.message);
   }
 }
+
 
 // === 💡 RAGANORK DUAL-MESSAGE LOGIC RESTORED 💡 ===
 async function sendBotConnectedAlert() {
@@ -255,4 +248,5 @@ const connect = async () => {
 
 // Start the connection
 connect()
+
 

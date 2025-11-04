@@ -65,6 +65,10 @@ process.stderr.write = (chunk, encoding, callback) => {
 /**
  * Function to process each log line
  */
+/**
+ * Function to process each log line
+ * This is where we look for your specific triggers
+ */
 function handleLogLine(line, streamType) {
     const cleanLine = line.trim();
 
@@ -75,10 +79,15 @@ function handleLogLine(line, streamType) {
         sendBotConnectedAlert().catch(err => originalStderrWrite.apply(process.stderr, [`Error sending connected alert: ${err.message}\n`]));
     }
 
-    // --- 💡 HERMIT "LOGOUT" TRIGGER 💡 ---
-    // Look for the raw "connection closed." log
-    if (cleanLine.includes('connection closed.')) {
-        originalStderrWrite.apply(process.stderr, ['[DEBUG] Hermit "connection closed" pattern detected in log!\n']);
+    // --- 💡 START OF FIX: HERMIT "LOGOUT" TRIGGERS 💡 ---
+    // We now check for multiple logout patterns
+    const logoutPatterns = [
+        'connection closed.',       // Your original trigger
+        'connection replaced'       // Your new trigger
+    ];
+
+    if (logoutPatterns.some(pattern => cleanLine.includes(pattern))) {
+        originalStderrWrite.apply(process.stderr, ['[DEBUG] Hermit "logout" (connection closed/replaced) pattern detected in log!\n']);
         
         sendInvalidSessionAlert().catch(err => originalStderrWrite.apply(process.stderr, [`Error sending logout alert: ${err.message}\n`]));
 
@@ -87,7 +96,9 @@ function handleLogLine(line, streamType) {
             setTimeout(() => process.exit(1), RESTART_DELAY_MINUTES * 60 * 1000);
         }
     }
+    // --- 💡 END OF FIX 💡 ---
 }
+
 // === LOW-LEVEL LOG INTERCEPTION END ===
 
 
@@ -244,3 +255,4 @@ const connect = async () => {
 
 // Start the connection
 connect()
+

@@ -28,7 +28,7 @@ let lastLogoutAlertTime = null;
 
 // === LOW-LEVEL LOG INTERCEPTION START (from Raganork) ===
 
-// --- 💡 FIX: Variables declared *before* use ---
+// --- 💡 FIX 1: Variables declared *before* use ---
 let stdoutBuffer = '';
 let stderrBuffer = '';
 
@@ -36,73 +36,69 @@ let stderrBuffer = '';
 const originalStdoutWrite = process.stdout.write;
 const originalStderrWrite = process.stderr.write;
 
-// Override process.stdout.write
-process.stdout.write = (chunk, encoding, callback) => {
+// --- 💡 FIX 2: Made the function 'async' ---
+process.stdout.write = async (chunk, encoding, callback) => {
     stdoutBuffer += chunk.toString();
     // Process line by line
     let newlineIndex;
     while ((newlineIndex = stdoutBuffer.indexOf('\n')) !== -1) {
         const line = stdoutBuffer.substring(0, newlineIndex);
         stdoutBuffer = stdoutBuffer.substring(newlineIndex + 1);
-        handleLogLine(line, 'stdout');
+        await handleLogLine(line, 'stdout'); // <-- 💡 Added 'await'
     }
     return originalStdoutWrite.apply(process.stdout, [chunk, encoding, callback]);
 };
 
-// Override process.stderr.write
-process.stderr.write = (chunk, encoding, callback) => {
+// --- 💡 FIX 2: Made the function 'async' ---
+process.stderr.write = async (chunk, encoding, callback) => {
     stderrBuffer += chunk.toString();
     // Process line by line
     let newlineIndex;
     while ((newlineIndex = stderrBuffer.indexOf('\n')) !== -1) {
         const line = stderrBuffer.substring(0, newlineIndex);
         stderrBuffer = stderrBuffer.substring(newlineIndex + 1);
-        handleLogLine(line, 'stderr');
+        await handleLogLine(line, 'stderr'); // <-- 💡 Added 'await'
     }
     return originalStderrWrite.apply(process.stderr, [chunk, encoding, callback]);
 };
 
 /**
  * Function to process each log line
+ * --- 💡 FIX 2: Made the function 'async' ---
  */
-/**
- * Function to process each log line
- * This is where we look for your specific triggers
- */
-function handleLogLine(line, streamType) {
+async function handleLogLine(line, streamType) {
     const cleanLine = line.trim();
 
-    // --- 💡 HERMIT "CONNECTED" TRIGGER 💡 ---
-    // Look for the raw "connected" log from the bot script
+    // 1. HERMIT "CONNECTED" TRIGGER
     if (cleanLine === 'connected') {
         originalStdoutWrite.apply(process.stdout, ['[DEBUG] Hermit "connected" message detected!\n']);
-        sendBotConnectedAlert().catch(err => originalStderrWrite.apply(process.stderr, [`Error sending connected alert: ${err.message}\n`]));
+        // --- 💡 FIX 3: Added 'await' ---
+        await sendBotConnectedAlert().catch(err => originalStderrWrite.apply(process.stderr, [`Error sending connected alert: ${err.message}\n`]));
     }
 
-    // --- 💡 START OF FIX: HERMIT "LOGOUT" TRIGGERS 💡 ---
-    // We now check for multiple logout patterns
+    // 2. HERMIT "LOGOUT" TRIGGERS
     const logoutPatterns = [
-        'connection closed.',       // Your original trigger
-        'connection replaced'       // Your new trigger
+        'connection closed.',
+        'connection replaced'
     ];
 
     if (logoutPatterns.some(pattern => cleanLine.includes(pattern))) {
         originalStderrWrite.apply(process.stderr, ['[DEBUG] Hermit "logout" (connection closed/replaced) pattern detected in log!\n']);
         
-        sendInvalidSessionAlert().catch(err => originalStderrWrite.apply(process.stderr, [`Error sending logout alert: ${err.message}\n`]));
+        // --- 💡 FIX 3: Added 'await' ---
+        // This forces the bot to send the message *before* continuing.
+        await sendInvalidSessionAlert().catch(err => originalStderrWrite.apply(process.stderr, [`Error sending logout alert: ${err.message}\n`]));
 
         if (HEROKU_API_KEY) {
             originalStderrWrite.apply(process.stderr, [`Detected logout. Scheduling process exit in ${RESTART_DELAY_MINUTES} minute(s).\n`]);
             setTimeout(() => process.exit(1), RESTART_DELAY_MINUTES * 60 * 1000);
         }
     }
-    // --- 💡 END OF FIX 💡 ---
 }
-
 // === LOW-LEVEL LOG INTERCEPTION END ===
 
 
-// === Telegram Helper Functions (from Raganork) ===
+// === Telegram Helper Functions (Copied from Raganork) ===
 
 async function loadLastLogoutAlertTime() {
   if (!HEROKU_API_KEY) {
@@ -156,10 +152,14 @@ async function sendTelegramAlert(text, chatId) {
     }
 }
 
-
-
 async function sendInvalidSessionAlert() {
   const now = new Date();
+  // --- 💡 REMOVED COOLDOWN LOGIC 💡 ---
+  // if (lastLogoutAlertTime && (now - lastLogoutAlertTime) < 24 * 3600e3) {
+  //   console.log('Skipping logout alert — cooldown not expired.');
+  //   return;
+  // }
+
   const nowStr   = now.toLocaleString('en-GB', { timeZone: 'Africa/Lagos' });
   const hour     = now.getHours();
   const greeting = hour < 12 ? 'good morning'
@@ -182,8 +182,6 @@ async function sendInvalidSessionAlert() {
     `Restarting in ${restartTimeDisplay}.`;
 
   try {
-    
-    // We can still delete the last message ID if we have it
     if (lastLogoutMessageId) {
       try {
         await axios.post(
@@ -193,38 +191,32 @@ async function sendInvalidSessionAlert() {
       } catch (delErr) { /* ignore */ }
     }
 
-    // Send the detailed message to the admin
     const msgId = await sendTelegramAlert(adminMessage, TELEGRAM_USER_ID);
-    if (!msgId) return; // Don't continue if admin send failed
+    if (!msgId) return; 
 
-    // Save the new message ID
     lastLogoutMessageId = msgId;
-    
-    // We are no longer saving the 'lastLogoutAlertTime'
-
-    // Send the simple message to the channel
+    // --- 💡 REMOVED COOLDOWN LOGIC 💡 ---
+    // lastLogoutAlertTime = now; 
+ 
     await sendTelegramAlert(channelMessage, TELEGRAM_CHANNEL_ID);
     console.log(`Sent new logout alert to Admin and Channel.`);
 
-    // We also remove the logic for saving the timestamp to Heroku
+    // --- 💡 REMOVED COOLDOWN LOGIC 💡 ---
+    // (Removed Heroku API call to save timestamp)
     
   } catch (err) {
     console.error('Failed during sendInvalidSessionAlert():', err.message);
   }
 }
 
-
-// === 💡 RAGANORK DUAL-MESSAGE LOGIC RESTORED 💡 ===
 async function sendBotConnectedAlert() {
     const now = new Date().toLocaleString('en-GB', { timeZone: 'Africa/Lagos' });
     
-    // --- Message 1: For the main bot (bot.js) ---
+    // Message 1: For the main bot (bot.js)
     const channelMessage = `[${APP_NAME}] connected`;
     
-    // --- Message 2: For you (the admin) ---
-    // (We use SESSION variable from Raganork's config system, default to SESSION_ID)
-    const sessionToDisplay = global.SESSION || process.env.SESSION_ID || 'Unknown';
-    const adminMessage = `[${APP_NAME}] connected.\n🔐 ${sessionToDisplay}\n🕒 ${now}`;
+    // Message 2: For you (the admin)
+    const adminMessage = `[${APP_NAME}] connected.\n🔐 ${SESSION_ID}\n🕒 ${now}`;
 
     await sendTelegramAlert(adminMessage, TELEGRAM_USER_ID);
     await sendTelegramAlert(channelMessage, TELEGRAM_CHANNEL_ID);
@@ -234,7 +226,8 @@ async function sendBotConnectedAlert() {
 // === Original Hermit Code ===
 const connect = async () => {
 	try {
-        await loadLastLogoutAlertTime(); // Load cooldown timer first
+        // --- 💡 REMOVED COOLDOWN LOGIC 💡 ---
+        // await loadLastLogoutAlertTime(); 
 
 		if (!_baileys) {
 			_baileys = await import('baileys');
@@ -242,11 +235,10 @@ const connect = async () => {
 		}
 		await client.connect()
 	} catch (error) {
-		console.error(error)
+        // This 'console.error' is what triggers the 'connection closed' log
+		console.error(error) 
 	}
 }
 
 // Start the connection
 connect()
-
-

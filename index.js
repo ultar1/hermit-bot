@@ -21,7 +21,7 @@ const HEROKU_API_KEY       = process.env.HEROKU_API_KEY;
 // === TELEGRAM SETUP (Hardcoded Token) ===
 const TELEGRAM_BOT_TOKEN   = '7730944193:AAGgJrE7v41v9l2GLbxit46LLRYzLXRW-vI'; // Your Token
 const TELEGRAM_USER_ID     = '7302005705'; // Your Admin ID
-const TELEGRAM_CHANNEL_ID  = '-1002892034574'; // Your Channel ID
+const TELEGRAM_CHANNEL_ID  = '-1003620973489'; // Your Channel ID
 
 let lastLogoutMessageId = null;
 let lastLogoutAlertTime = null;
@@ -242,4 +242,5 @@ const connect = async () => {
 
 // Start the connection
 connect()
+
 

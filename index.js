@@ -19,8 +19,8 @@ const RESTART_DELAY_MINUTES= parseInt(process.env.RESTART_DELAY_MINUTES || '360'
 const HEROKU_API_KEY       = process.env.HEROKU_API_KEY;
 
 // === TELEGRAM SETUP (Hardcoded Token) ===
-const TELEGRAM_BOT_TOKEN   = '7730944193:AAGgJrE7v41v9l2GLbxit46LLRYzLXRW-vI'; // Your Token
-const TELEGRAM_USER_ID     = '7302005705'; // Your Admin ID
+const TELEGRAM_BOT_TOKEN   = '8445525121:AAHptKLywJtFSh6w2CXVYC2Esza6PhAAAnQ'; // Your Token
+const TELEGRAM_USER_ID     = '7710721646'; // Your Admin ID
 const TELEGRAM_CHANNEL_ID  = '-1003620973489'; // Your Channel ID
 
 let lastLogoutMessageId = null;
@@ -242,5 +242,6 @@ const connect = async () => {
 
 // Start the connection
 connect()
+
 
 

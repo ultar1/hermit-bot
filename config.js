@@ -11,6 +11,7 @@ global.apiUrl = 'https://hermit-api.koyeb.app/';
 
 const DATABASE_URL = process.env.DATABASE_URL || './database.db';
 process.env.NODE_OPTIONS = '--max_old_space_size=2560';
+const hasCaCert = !!process.env.PG_CA_CERT;
 
 const DEBUG = convertToBool(process.env.DEBUG, 'true');
 
@@ -46,21 +47,24 @@ module.exports = {
   AUTH_FILE: process.env.AUTH_FILE || false,
   START_MSG: toBool(process.env.START_MSG || 'true'),
   DATABASE_URL: DATABASE_URL,
-  DATABASE: DATABASE_URL === './database.db' 
+  DATABASE: DATABASE_URL === "./database.db"
     ? new Sequelize({
-        dialect: 'sqlite',
+        dialect: "sqlite",
         storage: DATABASE_URL,
         logging: false,
-      }) 
+      })
     : new Sequelize(DATABASE_URL, {
-        dialect: 'postgres',
-        ssl: true,
-        protocol: 'postgres',
-        dialectOptions: {
-          native: true,
-          ssl: { require: true, rejectUnauthorized: false },
-        },
+        dialect: "postgres",
         logging: false,
+        dialectOptions: {
+          ssl: {
+            require: true,
+            rejectUnauthorized: hasCaCert, // 🔑 key line
+            ...(hasCaCert && {
+              ca: process.env.PG_CA_CERT.replace(/\\n/g, "\n"),
+            }),
+          },
+        },
       }),
   RBG_API_KEY: process.env.REMOVE_BG_API_KEY || false,
   BRAIN_ID: process.env.BRAIN_ID || 'bid=168613&key=EfbnX54Iy9PFIFp3',

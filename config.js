@@ -1,12 +1,20 @@
 const { Sequelize } = require('sequelize');
 const fs = require('fs');
 
-if (fs.existsSync('config.env')) require('dotenv').config({ path: './config.env', override: true });
+// Load local development values only when they are not already supplied by
+// Heroku or another hosting provider. Hosted environment variables must win.
+if (fs.existsSync('config.env')) require('dotenv').config({ path: './config.env' });
 
 const convertToBool = (text, fault = 'true') => text === fault;
 const toBool = (x) => (x && x.toLowerCase() === 'true') || false;
 
-const DATABASE_URL = process.env.DATABASE_URL || './database.db';
+const DATABASE_URL = (process.env.DATABASE_URL || '').trim();
+
+if (process.env.NODE_ENV === 'production' && !DATABASE_URL) {
+  throw new Error('DATABASE_URL is required in production. Set it in Heroku Config Vars.');
+}
+
+const DATABASE_CONNECTION = DATABASE_URL || './database.db';
 const hasCaCert = !!process.env.PG_CA_CERT;
 
 const DEBUG = convertToBool(process.env.DEBUG, 'true');
@@ -42,14 +50,14 @@ module.exports = {
   APIKEY: process.env.APIKEY || 'free',
   AUTH_FILE: process.env.AUTH_FILE || false,
   START_MSG: toBool(process.env.START_MSG || 'true'),
-  DATABASE_URL: DATABASE_URL,
-  DATABASE: DATABASE_URL === "./database.db"
+  DATABASE_URL: DATABASE_CONNECTION,
+  DATABASE: DATABASE_CONNECTION === "./database.db"
     ? new Sequelize({
         dialect: "sqlite",
-        storage: DATABASE_URL,
+        storage: DATABASE_CONNECTION,
         logging: false,
       })
-    : new Sequelize(DATABASE_URL, {
+    : new Sequelize(DATABASE_CONNECTION, {
         dialect: "postgres",
         logging: false,
         dialectOptions: {

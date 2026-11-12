@@ -4,7 +4,7 @@
   "description": "Hermit-md - Simple whatsapp Multi Device bot based on baileys.",
   "main": "index.js",
   "scripts": {
-    "start": "PIDUSAGE_SILENT=true pm2 start . --attach --name hermit-md"
+    "start": "node index.js"
   },
   "author": "A-d-i-t-h-y-a-n",
   "license": "ISC",

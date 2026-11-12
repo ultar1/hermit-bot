@@ -6,9 +6,6 @@ if (fs.existsSync('config.env')) require('dotenv').config({ path: './config.env'
 const convertToBool = (text, fault = 'true') => text === fault;
 const toBool = (x) => (x && x.toLowerCase() === 'true') || false;
 
-global.apikey = { 'https://api.adithyan.xyz': 'free' };
-global.apiUrl = 'https://hermit-api.koyeb.app/';
-
 const DATABASE_URL = process.env.DATABASE_URL || './database.db';
 const hasCaCert = !!process.env.PG_CA_CERT;
 
@@ -23,7 +20,7 @@ module.exports = {
   READ_MSG: toBool(process.env.READ_MSG),
   MSG_LOG: convertToBool(process.env.LOG_MSG),
   BLOCKCHAT: process.env.BLOCK_CHAT || false,
-  LANG: (process.env.LANGUAGE || 'EN').toUpperCase(),
+  LANG: ('EN').toUpperCase(),
   ALWAYS_ONLINE: toBool(process.env.ALWAYS_ONLINE),
   BOT_NAME: process.env.BOT_NAME || 'ʜᴇʀᴍɪᴛ',
   AUTOMUTE_MSG: process.env.AUTOMUTE_MSG || '_Group automuted!_\n_(Change this by setting var AUTOMUTE_MSG)_',

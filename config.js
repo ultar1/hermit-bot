@@ -8,6 +8,52 @@ if (fs.existsSync('config.env')) require('dotenv').config({ path: './config.env'
 const convertToBool = (text, fault = 'true') => text === fault;
 const toBool = (x) => (x && x.toLowerCase() === 'true') || false;
 
+function createDisabledDatabase() {
+  const sequelize = new Sequelize({
+    dialect: 'postgres',
+    host: '127.0.0.1',
+    database: 'disabled',
+    username: 'disabled',
+    password: 'disabled',
+    logging: false,
+  });
+  const noRows = async () => [];
+  const noRow = async () => null;
+  const noWrite = async () => 0;
+  const makeInstance = (values = {}) => ({
+    ...values,
+    dataValues: values,
+    get: () => values,
+    toJSON: () => values,
+    update: async () => makeInstance(values),
+    destroy: async () => {},
+  });
+
+  sequelize.authenticate = async () => {};
+  sequelize.sync = async () => sequelize;
+  sequelize.query = async () => [[], {}];
+  sequelize.transaction = async () => ({ commit: async () => {}, rollback: async () => {} });
+  sequelize.close = async () => {};
+
+  const define = sequelize.define.bind(sequelize);
+  sequelize.define = (...args) => {
+    const model = define(...args);
+    model.findAll = noRows;
+    model.findOne = noRow;
+    model.findByPk = noRow;
+    model.findOrCreate = async (options = {}) => [makeInstance(options.defaults || {}), false];
+    model.findCreateFind = async (options = {}) => makeInstance(options.defaults || {});
+    model.create = async (values = {}) => makeInstance(values);
+    model.bulkCreate = async () => [];
+    model.update = async () => [0];
+    model.destroy = noWrite;
+    model.count = async () => 0;
+    model.upsert = async (values = {}) => [makeInstance(values), false];
+    return model;
+  };
+  return sequelize;
+}
+
 const DATABASE_CONNECTION = (process.env.DATABASE_URL || '').trim();
 if (!DATABASE_CONNECTION) {
   console.warn('DATABASE_URL is not set; PostgreSQL-backed features will be unavailable.');
@@ -62,14 +108,7 @@ module.exports = {
           },
         },
       })
-    : new Sequelize({
-        dialect: "postgres",
-        host: "localhost",
-        database: "hermit",
-        username: "hermit",
-        password: "",
-        logging: false,
-      }),
+    : createDisabledDatabase(),
   RBG_API_KEY: process.env.REMOVE_BG_API_KEY || false,
   BRAIN_ID: process.env.BRAIN_ID || 'bid=168613&key=EfbnX54Iy9PFIFp3',
   SUDO: process.env.SUDO || '0,0',

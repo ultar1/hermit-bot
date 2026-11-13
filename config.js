@@ -9,47 +9,60 @@ const convertToBool = (text, fault = 'true') => text === fault;
 const toBool = (x) => (x && x.toLowerCase() === 'true') || false;
 
 function createDisabledDatabase() {
-  const sequelize = new Sequelize({
-    dialect: 'postgres',
-    host: '127.0.0.1',
-    database: 'disabled',
-    username: 'disabled',
-    password: 'disabled',
-    logging: false,
-  });
   const noRows = async () => [];
   const noRow = async () => null;
-  const noWrite = async () => 0;
   const makeInstance = (values = {}) => ({
     ...values,
     dataValues: values,
-    get: () => values,
+    get: (key) => key ? values[key] : values,
     toJSON: () => values,
-    update: async () => makeInstance(values),
+    update: async (updates = {}) => makeInstance({ ...values, ...updates }),
+    save: async () => makeInstance(values),
     destroy: async () => {},
   });
-
-  sequelize.authenticate = async () => {};
-  sequelize.sync = async () => sequelize;
-  sequelize.query = async () => [[], {}];
-  sequelize.transaction = async () => ({ commit: async () => {}, rollback: async () => {} });
-  sequelize.close = async () => {};
-
-  const define = sequelize.define.bind(sequelize);
-  sequelize.define = (...args) => {
-    const model = define(...args);
-    model.findAll = noRows;
-    model.findOne = noRow;
-    model.findByPk = noRow;
-    model.findOrCreate = async (options = {}) => [makeInstance(options.defaults || {}), false];
-    model.findCreateFind = async (options = {}) => makeInstance(options.defaults || {});
-    model.create = async (values = {}) => makeInstance(values);
-    model.bulkCreate = async () => [];
-    model.update = async () => [0];
-    model.destroy = noWrite;
-    model.count = async () => 0;
-    model.upsert = async (values = {}) => [makeInstance(values), false];
-    return model;
+  const sequelize = {
+    models: {},
+    define(name, attributes = {}) {
+      const model = {
+        name,
+        modelName: name,
+        rawAttributes: attributes,
+        sequelize,
+        associations: {},
+        findAll: noRows,
+        findOne: noRow,
+        findByPk: noRow,
+        findOrCreate: async (options = {}) => [makeInstance(options.defaults || {}), false],
+        findCreateFind: async (options = {}) => makeInstance(options.defaults || {}),
+        create: async (values = {}) => makeInstance(values),
+        build: (values = {}) => makeInstance(values),
+        bulkCreate: async () => [],
+        update: async () => [0],
+        destroy: async () => 0,
+        count: async () => 0,
+        upsert: async (values = {}) => [makeInstance(values), false],
+        sync: async () => model,
+        drop: async () => {},
+        truncate: async () => 0,
+        belongsTo: () => ({}),
+        belongsToMany: () => ({}),
+        hasMany: () => ({}),
+        hasOne: () => ({}),
+      };
+      this.models[name] = model;
+      return model;
+    },
+    model(name) { return this.models[name]; },
+    authenticate: async () => {},
+    sync: async () => sequelize,
+    query: async () => [[], {}],
+    transaction: async (options, callback) => {
+      const transaction = { commit: async () => {}, rollback: async () => {} };
+      const fn = typeof options === 'function' ? options : callback;
+      return typeof fn === 'function' ? fn(transaction) : transaction;
+    },
+    close: async () => {},
+    getQueryInterface: () => new Proxy({}, { get: () => async () => [] }),
   };
   return sequelize;
 }

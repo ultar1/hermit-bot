@@ -8,13 +8,10 @@ if (fs.existsSync('config.env')) require('dotenv').config({ path: './config.env'
 const convertToBool = (text, fault = 'true') => text === fault;
 const toBool = (x) => (x && x.toLowerCase() === 'true') || false;
 
-const DATABASE_URL = (process.env.DATABASE_URL || '').trim();
-
-if (process.env.NODE_ENV === 'production' && !DATABASE_URL) {
-  throw new Error('DATABASE_URL is required in production. Set it in Heroku Config Vars.');
+const DATABASE_CONNECTION = (process.env.DATABASE_URL || '').trim();
+if (!DATABASE_CONNECTION) {
+  console.warn('DATABASE_URL is not set; PostgreSQL-backed features will be unavailable.');
 }
-
-const DATABASE_CONNECTION = DATABASE_URL || './database.db';
 const hasCaCert = !!process.env.PG_CA_CERT;
 
 const DEBUG = convertToBool(process.env.DEBUG, 'true');
@@ -51,13 +48,8 @@ module.exports = {
   AUTH_FILE: process.env.AUTH_FILE || false,
   START_MSG: toBool(process.env.START_MSG || 'true'),
   DATABASE_URL: DATABASE_CONNECTION,
-  DATABASE: DATABASE_CONNECTION === "./database.db"
-    ? new Sequelize({
-        dialect: "sqlite",
-        storage: DATABASE_CONNECTION,
-        logging: false,
-      })
-    : new Sequelize(DATABASE_CONNECTION, {
+  DATABASE: DATABASE_CONNECTION
+    ? new Sequelize(DATABASE_CONNECTION, {
         dialect: "postgres",
         logging: false,
         dialectOptions: {
@@ -69,6 +61,14 @@ module.exports = {
             }),
           },
         },
+      })
+    : new Sequelize({
+        dialect: "postgres",
+        host: "localhost",
+        database: "hermit",
+        username: "hermit",
+        password: "",
+        logging: false,
       }),
   RBG_API_KEY: process.env.REMOVE_BG_API_KEY || false,
   BRAIN_ID: process.env.BRAIN_ID || 'bid=168613&key=EfbnX54Iy9PFIFp3',

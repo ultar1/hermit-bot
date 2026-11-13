@@ -33,7 +33,6 @@
     "sequelize": "^6.37.3",
     "simple-git": "^3.25.0",
     "socket.io-client": "^4.7.5",
-    "sqlite3": "^5.1.7",
     "string-crypto": "^2.0.2",
     "translate-google-api": "^1.0.4",
     "youtubei.js": "^12.2.0",
